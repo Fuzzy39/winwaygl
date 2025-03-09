@@ -29,7 +29,7 @@ static void global_registry_handler
     }
     if (strcmp(interface, wl_shm_interface.name) == 0)
     {
-        way.xdg_wm_base = wl_registry_bind(registry, id, &wl_shm_interface, 1);
+        way.shm = wl_registry_bind(registry, id, &wl_shm_interface, 1);
         return;
     }
 }
