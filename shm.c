@@ -30,7 +30,6 @@ static int create_shm_file(void)
 	int retries = 100;
 	do 
 	{
-		printf("Attempt: %d", 100-retries+1);
 		// generate a radom file name
 		char name[] = "/wl_shm-XXXXXX";
 		randname(name + sizeof(name) - 7);
@@ -52,7 +51,7 @@ static int create_shm_file(void)
 int allocate_shm_file(size_t size)
 {
 	int fd = create_shm_file();
-	printf("Doing things");
+	
 	if (fd < 0)return -1;
 
 	int ret;
@@ -74,11 +73,13 @@ int allocate_shm_file(size_t size)
 
 void create_shm_pool()
 {
-	printf("Surely we at least got here.\n");
-	const int width = 1920, height = 1080;
+	
+	const int width = 512, height = 512;
 	const int bytes_per_pixel = 4;
 	// 2 for double buffer.
-	const int shm_pool_size = height * width * bytes_per_pixel * 2;
+	
+	const int buffer_size = height * width * bytes_per_pixel;
+	const int shm_pool_size = buffer_size * 1;
 
 	int fd = allocate_shm_file(shm_pool_size);
 	if(fd<0)
@@ -87,10 +88,30 @@ void create_shm_pool()
 		exit(1);
 	}
 
-	printf("got fd\n");
 	uint8_t *pool_data = mmap(NULL, shm_pool_size,
     PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
 	struct wl_shm_pool *pool = wl_shm_create_pool(way.shm, fd, shm_pool_size);
 	way.pool = pool;
+
+	// make a buffer
+	int index = 0;
+	int offset = index*buffer_size;
+	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, offset,
+    width, height, width*bytes_per_pixel, WL_SHM_FORMAT_ARGB8888);
+
+	// GIve it a bunch of pixel data
+	uint32_t *pixels = (uint32_t *)&pool_data[offset];
+	memset(pixels, 0, buffer_size);
+	
+	for(int i = 0; i<buffer_size/4; i++)
+	{
+		int j = i; //- i%1024 ;
+		int k = j - j%4 + 2;
+		pixels[i]= (k*64) | (255 << 24);
+	}
+
+	wl_surface_attach(way.surface, buffer, 0, 0);
+	wl_surface_damage(way.surface, 0, 0, UINT32_MAX, UINT32_MAX);
+	wl_surface_commit(way.surface);
 }
